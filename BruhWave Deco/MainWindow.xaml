@@ -70,9 +70,9 @@
             <!--<Rectangle Height="48" Width="{Binding IndicatorWidth}" Fill="#009aa8"/>-->
 
             <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,16">
-                <TextBlock Text="{Binding PeakFrequencyString}" Height="24"/>
-                <TextBlock Margin="32,0,0,0" Text="{Binding CurrentNote}" Height="24"/>
-                <TextBlock Margin="32,0,0,0" FontSize="48" Text="+" Height="48"/>
+                <TextBlock Text="{Binding PeakFrequencyString}" Height="24" Width="48"/>
+                <TextBlock Margin="32,0,0,0" Text="{Binding CurrentNote}" Height="24" Width="24"/>
+                <TextBlock Margin="32,0,0,0" FontSize="48" Text="{Binding CurrentCentSignString}" Height="48"/>
                 <TextBlock Margin="0" Text="{Binding CurrentCentDiffString}" Height="24"/>
             </StackPanel>
 

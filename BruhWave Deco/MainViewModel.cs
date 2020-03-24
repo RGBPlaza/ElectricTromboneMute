@@ -33,11 +33,12 @@ namespace BruhWave_Deco
         private int currentMidiValue;
         private int currentCentDifference;
 
-        public int CurrentMidiValue { get => currentMidiValue; set { currentMidiValue = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentNote)); } }
+        public int CurrentMidiNoteNumber { get => currentMidiValue; set { currentMidiValue = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentNote)); } }
         public string CurrentNote { get => notes[currentMidiValue % 12]; }
 
-        public int CurrentCentDifference { get => currentCentDifference; set { currentCentDifference = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentCentDiffString)); } }
-        public string CurrentCentDiffString { get => $" {currentCentDifference} cents"; }
+        public int CurrentCentDifference { get => currentCentDifference; set { currentCentDifference = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentCentDiffString)); OnPropertyChanged(nameof(CurrentCentSignString)); } }
+        public string CurrentCentSignString { get => currentCentDifference >= 0 ? "+" : "-"; }
+        public string CurrentCentDiffString { get => $" {currentCentDifference:00} cents"; }
 
         public List<string> AsioDrivers { get; set; }
         public List<string> MidiPorts { get; set; }
@@ -78,56 +79,65 @@ namespace BruhWave_Deco
             pitchTracker.PitchDetected += PitchTracker_PitchDetected;
         }
 
+        private const int smooshFactor = 10;
+
+        private int previousNoteNumber = 0;
+        private double previousCentDifference = 0;
+
         private void PitchTracker_PitchDetected(PitchTracker sender, PitchTracker.PitchRecord pitchRecord)
         {
-            double peakFreq = pitchRecord.Pitch * 2;
-            PeakFrequency = peakFreq;
-            if (peakFreq == 0)
+            double pitchFreq = pitchRecord.Pitch * 2;
+            PeakFrequency = pitchFreq;
+            if (pitchFreq == 0)
             {
-                @midi.Reset();
+                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, previousNoteNumber, 0);
+                midi.Send(stopEvent.GetAsShortMessage());
                 previousNoteNumber = 0;
                 return;
             }
 
-            int noteNumber = (int)Math.Floor(12 * Math.Log2(peakFreq / 440d) + 69);
-            double closestNoteFreq = Math.Pow(2, (noteNumber - 69) / 12d) * 440;
-            double centDifference = 1200 * Math.Log2(peakFreq / closestNoteFreq);
+            int actualNoteNumber = (int)(12 * Math.Log2(pitchFreq / 440d) + 69);
+            double actualNoteFreq = Math.Pow(2, (actualNoteNumber - 69) / 12d) * 440;
+            double centDifferenceFromActual = 1200 * Math.Log2(pitchFreq / actualNoteFreq);
 
-            if (centDifference != previousCentDifference)
+            int proxyNoteNumber = smooshFactor*(actualNoteNumber/smooshFactor);
+            double proxyNoteFreq = Math.Pow(2, (proxyNoteNumber - 69) / 12d) * 440;
+            double centDifferenceFromProxy = 1200 * Math.Log2(pitchFreq / proxyNoteFreq);
+
+
+            if (proxyNoteNumber != previousNoteNumber)
             {
-                CurrentCentDifference = (int)centDifference;
-                var pitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000 + (int)(centDifference / 100d * 0x0200));
-                @midi.Send(pitchBendEvent.GetAsShortMessage());
-                previousCentDifference = centDifference;
+                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, previousNoteNumber, 0);
+                midi.Send(stopEvent.GetAsShortMessage());
+                CurrentMidiNoteNumber = actualNoteNumber;
+                var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
+                midi.Send(noteEvent.GetAsShortMessage());
+                previousNoteNumber = proxyNoteNumber;
             }
 
-            if (noteNumber != previousNoteNumber)
+            if (centDifferenceFromProxy != previousCentDifference)
             {
-                CurrentMidiValue = noteNumber;
-                var noteEvent = new NoteOnEvent(0, 1, noteNumber, 100, 0);
-                @midi.Reset();
-                @midi.Send(noteEvent.GetAsShortMessage());
-                previousNoteNumber = noteNumber;
+                CurrentCentDifference = (int)centDifferenceFromActual;
+                var pitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000 + (int)(centDifferenceFromProxy / 100d * 0x02C0));
+                midi.Send(pitchBendEvent.GetAsShortMessage());
+                previousCentDifference = centDifferenceFromProxy;
             }
         }
 
         private PointCollection wavePoints;
         public PointCollection WavePoints { get => wavePoints; set { wavePoints = value; OnPropertyChanged(); } }
 
-        private PointCollection ftPoints;
-        public PointCollection FTPoints { get => ftPoints; set { ftPoints = value; OnPropertyChanged(); } }
-
-        private AsioOut @asio;
-        private MidiOut @midi;
+        private AsioOut asio;
+        private MidiOut midi;
         public void Start()
         {
             if (!isRunning)
             {
-                @asio = new AsioOut(selectedAsioDriverIndex ?? 0) { AutoStop = false };
-                @asio.AudioAvailable += asio_AudioAvailable;
-                @asio.InitRecordAndPlayback(null, @asio.DriverInputChannelCount, sampleRate);
-                @asio.Play();
-                @midi = new MidiOut(MidiPortNumbers[SelectedMidiPortIndex ?? 0]);
+                asio = new AsioOut(selectedAsioDriverIndex ?? 0) { AutoStop = false };
+                asio.AudioAvailable += asio_AudioAvailable;
+                asio.InitRecordAndPlayback(null, asio.DriverInputChannelCount, sampleRate);
+                asio.Play();
+                midi = new MidiOut(MidiPortNumbers[SelectedMidiPortIndex ?? 0]);
                 IsRunning = true;
             }
         }
@@ -136,12 +146,11 @@ namespace BruhWave_Deco
         {
             if (isRunning)
             {
-                @asio.Stop();
-                @asio.Dispose();
-                @midi?.Reset();
-                @midi?.Dispose();
+                asio.Stop();
+                asio.Dispose();
+                midi?.Reset();
+                midi?.Dispose();
                 WavePoints = null;
-                FTPoints = null;
                 IsRunning = false;
             }
         }
@@ -149,10 +158,9 @@ namespace BruhWave_Deco
         private float[] samples;
         private void asio_AudioAvailable(object sender, AsioAudioAvailableEventArgs e)
         {
-            var sampleCount = e.SamplesPerBuffer * @asio.DriverInputChannelCount;
+            var sampleCount = e.SamplesPerBuffer * asio.DriverInputChannelCount;
             samples = new float[sampleCount];
             e.GetAsInterleavedSamples(samples);
-
             pitchTracker.ProcessBuffer(samples);
 
             var wpc = new PointCollection(samples.Select((y, x) => new System.Windows.Point(x, y * 100)));
@@ -160,9 +168,6 @@ namespace BruhWave_Deco
             WavePoints = wpc;
 
         }
-
-        private int previousNoteNumber = 0;
-        private double previousCentDifference = 0;
 
         private string[] notes = new string[12] { "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B" };
 
