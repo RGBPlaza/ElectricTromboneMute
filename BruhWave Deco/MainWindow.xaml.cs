@@ -26,12 +26,12 @@ namespace BruhWave_Deco
         {
             InitializeComponent();
             Closing += MainWindow_Closing;
-            Title = "Bruh:Wave Deco";
         }
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            ViewModel.Stop();
+            if (ViewModel.IsRunning)
+                ViewModel.Stop();
         }
 
         private void StartButton_Click(object sender, RoutedEventArgs e)
@@ -40,6 +40,16 @@ namespace BruhWave_Deco
                 ViewModel.Stop();
             else
                 ViewModel.Start();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void MinimiseButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
         }
 
     }

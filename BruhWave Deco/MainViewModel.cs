@@ -37,7 +37,7 @@ namespace BruhWave_Deco
         public string CurrentNote { get => notes[currentMidiValue % 12]; }
 
         public int CurrentCentDifference { get => currentCentDifference; set { currentCentDifference = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentCentDiffString)); } }
-        public string CurrentCentDiffString { get => $"+{currentCentDifference} cents"; }
+        public string CurrentCentDiffString { get => $" {currentCentDifference} cents"; }
 
         public List<string> AsioDrivers { get; set; }
         public List<string> MidiPorts { get; set; }

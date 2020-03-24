@@ -9,7 +9,29 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\ActivatedPower.png" />
+    <None Remove="Assets\DeactivatedPower.png" />
+    <None Remove="Assets\LeftFlare.png" />
+    <None Remove="Assets\RightFlare.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="NAudio" Version="1.10.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\ActivatedPower.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\DeactivatedPower.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\LeftFlare.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Assets\RightFlare.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>
