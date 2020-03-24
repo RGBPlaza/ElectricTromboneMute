@@ -82,7 +82,8 @@ namespace BruhWave_Deco
         private const int smooshFactor = 10;
 
         private int previousNoteNumber = 0;
-        private double previousCentDifference = 0;
+        private double previousCentDifferenceFromProxy = 0;
+        private int proxyNoteNumber = 0;
 
         private void PitchTracker_PitchDetected(PitchTracker sender, PitchTracker.PitchRecord pitchRecord)
         {
@@ -90,8 +91,10 @@ namespace BruhWave_Deco
             PeakFrequency = pitchFreq;
             if (pitchFreq == 0)
             {
-                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, previousNoteNumber, 0);
+                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, proxyNoteNumber, 0);
                 midi.Send(stopEvent.GetAsShortMessage());
+                var revertPitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000);
+                midi.Send(revertPitchBendEvent.GetAsShortMessage());
                 previousNoteNumber = 0;
                 return;
             }
@@ -100,27 +103,40 @@ namespace BruhWave_Deco
             double actualNoteFreq = Math.Pow(2, (actualNoteNumber - 69) / 12d) * 440;
             double centDifferenceFromActual = 1200 * Math.Log2(pitchFreq / actualNoteFreq);
 
-            int proxyNoteNumber = smooshFactor*(actualNoteNumber/smooshFactor);
+            if (actualNoteNumber != previousNoteNumber)
+            {
+                CurrentMidiNoteNumber = actualNoteNumber;
+                if (previousNoteNumber == 0)
+                {
+                    proxyNoteNumber = actualNoteNumber;
+                    var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
+                    midi.Send(noteEvent.GetAsShortMessage());
+                }
+                previousNoteNumber = actualNoteNumber;
+            }
+
+            //int proxyNoteNumber = smooshFactor*(actualNoteNumber/smooshFactor);
             double proxyNoteFreq = Math.Pow(2, (proxyNoteNumber - 69) / 12d) * 440;
             double centDifferenceFromProxy = 1200 * Math.Log2(pitchFreq / proxyNoteFreq);
 
-
-            if (proxyNoteNumber != previousNoteNumber)
+            if (centDifferenceFromProxy != previousCentDifferenceFromProxy)
             {
-                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, previousNoteNumber, 0);
-                midi.Send(stopEvent.GetAsShortMessage());
-                CurrentMidiNoteNumber = actualNoteNumber;
-                var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
-                midi.Send(noteEvent.GetAsShortMessage());
-                previousNoteNumber = proxyNoteNumber;
-            }
+                if(centDifferenceFromProxy > 1599 || centDifferenceFromProxy < -1599)
+                {
+                    var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, proxyNoteNumber, 0);
+                    midi.Send(stopEvent.GetAsShortMessage());
 
-            if (centDifferenceFromProxy != previousCentDifference)
-            {
+                    proxyNoteNumber = actualNoteNumber;
+                    var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
+                    midi.Send(noteEvent.GetAsShortMessage());
+
+                    proxyNoteFreq = Math.Pow(2, (proxyNoteNumber - 69) / 12d) * 440;
+                    centDifferenceFromProxy = 1200 * Math.Log2(pitchFreq / proxyNoteFreq);
+                }
                 CurrentCentDifference = (int)centDifferenceFromActual;
-                var pitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000 + (int)(centDifferenceFromProxy / 100d * 0x02C0));
+                var pitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000 + (int)(centDifferenceFromProxy / 100d * 0x0200));
                 midi.Send(pitchBendEvent.GetAsShortMessage());
-                previousCentDifference = centDifferenceFromProxy;
+                previousCentDifferenceFromProxy = centDifferenceFromProxy;
             }
         }
 
