@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace WPF_Version
+namespace BruhWave_Deco
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -26,7 +26,7 @@ namespace WPF_Version
         {
             InitializeComponent();
             Closing += MainWindow_Closing;
-            DataContext = ViewModel;
+            Title = "Bruh:Wave Deco";
         }
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -36,7 +36,11 @@ namespace WPF_Version
 
         private void StartButton_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.Start();
+            if (ViewModel.IsRunning)
+                ViewModel.Stop();
+            else
+                ViewModel.Start();
         }
+
     }
 }

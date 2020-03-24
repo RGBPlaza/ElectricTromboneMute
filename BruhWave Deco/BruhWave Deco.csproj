@@ -3,8 +3,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <RootNamespace>WPF_Version</RootNamespace>
+    <RootNamespace>BruhWave_Deco</RootNamespace>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>ActivatedPower.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
