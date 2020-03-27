@@ -8,13 +8,10 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#DAA520"/>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
-            <Setter Property="FontFamily" Value="Billionaire Grunge"/>
+            <Setter Property="FontFamily" Value="./Fonts/#Latin Modern Mono 10"/>
             <Setter Property="FontSize" Value="24"/>
         </Style>
         <Style TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
-            <Setter Property="FontFamily" Value="Billionaire Grunge"/>
-            <Setter Property="FontSize" Value="24"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
@@ -45,13 +42,9 @@
                 <Border Grid.Column="0" CornerRadius="2,0,0,2" Margin="1" 
                         Background="{StaticResource WindowBackgroundBrush}" 
                         BorderThickness="0" />
-                <TextBlock Foreground="{StaticResource AccentBrush}" FontSize="24" Text="{Binding Path=SelectedItem,Mode=OneWay,RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"/>
+                <TextBlock Foreground="{StaticResource AccentBrush}" FontSize="20" Text="{Binding Path=SelectedItem,Mode=OneWay,RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"/>
                 <Path x:Name="Arrow" Grid.Column="1" Fill="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0 Z"/>
             </Grid>
-        </ControlTemplate>
-
-        <ControlTemplate x:Key="ComboBoxTextBox" TargetType="TextBox">
-            <Border x:Name="PART_ContentHost" Focusable="False" Background="{TemplateBinding Background}" />
         </ControlTemplate>
 
 
@@ -82,8 +75,33 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
-        
+
+        <Style TargetType="{x:Type ComboBoxItem}"
+               BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+            <Setter Property="Template">
+                <Setter.Value>
+
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Margin="{TemplateBinding Margin}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter Margin="{TemplateBinding Margin}"
+                                                  VerticalAlignment="{TemplateBinding VerticalAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalAlignment}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" 
+                            Value="#40000000"/>
+                </Trigger>
+            </Style.Triggers>
+
+        </Style>
 
     </Application.Resources>
 </Application>

@@ -30,15 +30,15 @@ namespace BruhWave_Deco
         private double peakFrequency;
         private const int sampleRate = 44100;
         private List<int> MidiPortNumbers;
-        private int currentMidiValue;
+        private int currentMidiNoteNumber;
         private int currentCentDifference;
 
-        public int CurrentMidiNoteNumber { get => currentMidiValue; set { currentMidiValue = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentNote)); } }
-        public string CurrentNote { get => notes[currentMidiValue % 12]; }
+        public int CurrentMidiNoteNumber { get => currentMidiNoteNumber; set { currentMidiNoteNumber = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentNote)); } }
+        public string CurrentNote { get => CurrentMidiNoteNumber == 0 ? "Ø" : notes[currentMidiNoteNumber % 12]; }
 
         public int CurrentCentDifference { get => currentCentDifference; set { currentCentDifference = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentCentDiffString)); OnPropertyChanged(nameof(CurrentCentSignString)); } }
         public string CurrentCentSignString { get => currentCentDifference >= 0 ? "+" : "-"; }
-        public string CurrentCentDiffString { get => $" {currentCentDifference:00} cents"; }
+        public string CurrentCentDiffString { get => $" {Math.Abs(currentCentDifference):00} Cents"; }
 
         public List<string> AsioDrivers { get; set; }
         public List<string> MidiPorts { get; set; }
@@ -51,7 +51,7 @@ namespace BruhWave_Deco
         public float IndicatorWidth { get => currentSampleValue * 256f; }
 
         public double PeakFrequency { get => peakFrequency; set { peakFrequency = value; OnPropertyChanged(); OnPropertyChanged(nameof(PeakFrequencyString)); } }
-        public string PeakFrequencyString { get => $"{peakFrequency:000} hz"; }
+        public string PeakFrequencyString { get => $"{peakFrequency:000} Hz"; }
 
         public bool IsRunning { get => isRunning; set { isRunning = value; OnPropertyChanged(); OnPropertyChanged(nameof(PowerImageSource)); } }
         public string PowerImageSource { get => isRunning ? "Assets/ActivatedPower.png" : "Assets/DeactivatedPower.png"; }
@@ -79,8 +79,6 @@ namespace BruhWave_Deco
             pitchTracker.PitchDetected += PitchTracker_PitchDetected;
         }
 
-        private const int smooshFactor = 10;
-
         private int previousNoteNumber = 0;
         private double previousCentDifferenceFromProxy = 0;
         private int proxyNoteNumber = 0;
@@ -91,6 +89,8 @@ namespace BruhWave_Deco
             PeakFrequency = pitchFreq;
             if (pitchFreq == 0)
             {
+                CurrentMidiNoteNumber = 0;
+                CurrentCentDifference = 0;
                 var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, proxyNoteNumber, 0);
                 midi.Send(stopEvent.GetAsShortMessage());
                 var revertPitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000);
@@ -99,7 +99,7 @@ namespace BruhWave_Deco
                 return;
             }
 
-            int actualNoteNumber = (int)(12 * Math.Log2(pitchFreq / 440d) + 69);
+            int actualNoteNumber = (int)Math.Round(12 * Math.Log2(pitchFreq / 440d) + 69);
             double actualNoteFreq = Math.Pow(2, (actualNoteNumber - 69) / 12d) * 440;
             double centDifferenceFromActual = 1200 * Math.Log2(pitchFreq / actualNoteFreq);
 

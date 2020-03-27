@@ -13,6 +13,17 @@
     <None Remove="Assets\DeactivatedPower.png" />
     <None Remove="Assets\LeftFlare.png" />
     <None Remove="Assets\RightFlare.png" />
+    <None Remove="Fonts\BillionaireGrunge.ttf" />
+    <None Remove="Fonts\LatinModernMono.otf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Fonts\BillionaireGrunge.ttf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Fonts\LatinModernMono.otf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -20,18 +31,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\ActivatedPower.png">
+    <Content Include="Assets\ActivatedPower.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Assets\DeactivatedPower.png">
+    </Content>
+    <Content Include="Assets\DeactivatedPower.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Assets\LeftFlare.png">
+    </Content>
+    <Content Include="Assets\LeftFlare.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Assets\RightFlare.png">
+    </Content>
+    <Content Include="Assets\RightFlare.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
+    </Content>
   </ItemGroup>
 
 </Project>
