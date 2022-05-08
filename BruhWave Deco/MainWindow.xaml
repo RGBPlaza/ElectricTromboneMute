@@ -53,19 +53,20 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
             <TextBlock Grid.Row="1" Grid.Column="2" Text="Midi Port:" Margin="0,0,0,8"/>
+            <!--
             <ComboBox Grid.Row="2" Grid.Column="2" ItemsSource="{Binding MidiPorts}" BorderThickness="0" Height="24" Background="Transparent" SelectedIndex="{Binding SelectedMidiPortIndex}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
                         <TextBlock Text="{Binding}" Margin="4" FontSize="20"/>
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
-            </ComboBox>
+            </ComboBox>-->
 
             <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,32" Panel.ZIndex="-2">
                 <Button Width="64" Margin="0,0,32,0" Height="64" Background="Transparent" VerticalAlignment="Top" HorizontalAlignment="Center" BorderThickness="0" Click="StartButton_Click" IsEnabled="{Binding CanStart}">
                     <Image Source="{Binding PowerImageSource}"/>
                 </Button>
-                <Polyline Margin="0,8,0,0" VerticalAlignment="Center" Points="{Binding WavePoints}"/>
+                <!--<Polyline Margin="0,8,0,0" VerticalAlignment="Center" Points="{Binding WavePoints}"/>-->
             </StackPanel>
 
             <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,0,0,16">
