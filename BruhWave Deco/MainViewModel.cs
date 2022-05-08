@@ -59,7 +59,7 @@ namespace BruhWave_Deco
         public string PowerImageSource { get => isRunning ? "Assets/ActivatedPower.png" : "Assets/DeactivatedPower.png"; }
 
         // Switch Between MIDI and WAVE mode
-        private const bool midi_mode = true;
+        private const bool midi_mode = false;
 
 
         //private PitchTracker pitchTracker;
@@ -69,10 +69,10 @@ namespace BruhWave_Deco
             AsioDrivers = AsioOut.GetDriverNames().ToList();
             MidiPorts = new List<string>();
             MidiPortNumbers = new List<int>();
-            for(int i = 0; i < MidiOut.NumberOfDevices; i++)
+            for (int i = 0; i < MidiOut.NumberOfDevices; i++)
             {
                 var device = MidiOut.DeviceInfo(i);
-                if(device.Technology == MidiOutTechnology.MidiPort)
+                if (device.Technology == MidiOutTechnology.MidiPort)
                 {
                     MidiPorts.Add(device.ProductName);
                     MidiPortNumbers.Add(i);
@@ -116,7 +116,7 @@ namespace BruhWave_Deco
                 else
                 {
                     //asio.AudioAvailable += (s, e) => { System.Diagnostics.Debug.WriteLine("Hi"); };
-                    sampleProvider = new SampleProvider(asio);
+                    sampleProvider = new SineWaveProvider(asio);
                     asio.InitRecordAndPlayback(new SampleToWaveProvider16(sampleProvider), 1, sampleRate);
                     asio.Play();
                 }
@@ -147,39 +147,39 @@ namespace BruhWave_Deco
             e.GetAsInterleavedSamples(samples);
             //pitchTracker.ProcessBuffer(samples);
 
-                float pitchFreq = NWaves.Features.Pitch.FromAutoCorrelation(samples, sampleRate); PeakFrequency = pitchFreq;
-                if (pitchFreq == 0)
+            float pitchFreq = NWaves.Features.Pitch.FromAutoCorrelation(samples, sampleRate); PeakFrequency = pitchFreq;
+            if (pitchFreq == 0)
+            {
+                CurrentMidiNoteNumber = 0;
+                CurrentCentDifference = 0;
+                var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, proxyNoteNumber, 0);
+                midi.Send(stopEvent.GetAsShortMessage());
+                var revertPitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000);
+                midi.Send(revertPitchBendEvent.GetAsShortMessage());
+
+                previousNoteNumber = 0;
+                return;
+            }
+
+            int actualNoteNumber = (int)MathF.Round(12 * MathF.Log2(pitchFreq / 440f) + 69);
+            float actualNoteFreq = MathF.Pow(2, (actualNoteNumber - 69) / 12f) * 440;
+            float centDifferenceFromActual = 1200 * MathF.Log2(pitchFreq / actualNoteFreq);
+
+            if (actualNoteNumber != previousNoteNumber)
+            {
+                CurrentMidiNoteNumber = actualNoteNumber;
+                if (previousNoteNumber == 0)
                 {
-                    CurrentMidiNoteNumber = 0;
-                    CurrentCentDifference = 0;
-                    var stopEvent = new NoteEvent(0, 1, MidiCommandCode.NoteOff, proxyNoteNumber, 0);
-                    midi.Send(stopEvent.GetAsShortMessage());
-                    var revertPitchBendEvent = new PitchWheelChangeEvent(0, 1, 0x2000);
-                    midi.Send(revertPitchBendEvent.GetAsShortMessage());
-
-                    previousNoteNumber = 0;
-                    return;
+                    proxyNoteNumber = actualNoteNumber;
+                    var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
+                    midi.Send(noteEvent.GetAsShortMessage());
                 }
+                previousNoteNumber = actualNoteNumber;
+            }
 
-                int actualNoteNumber = (int)MathF.Round(12 * MathF.Log2(pitchFreq / 440f) + 69);
-                float actualNoteFreq = MathF.Pow(2, (actualNoteNumber - 69) / 12f) * 440;
-                float centDifferenceFromActual = 1200 * MathF.Log2(pitchFreq / actualNoteFreq);
-
-                if (actualNoteNumber != previousNoteNumber)
-                {
-                    CurrentMidiNoteNumber = actualNoteNumber;
-                    if (previousNoteNumber == 0)
-                    {
-                        proxyNoteNumber = actualNoteNumber;
-                        var noteEvent = new NoteOnEvent(0, 1, proxyNoteNumber, 100, 0);
-                        midi.Send(noteEvent.GetAsShortMessage());
-                    }
-                    previousNoteNumber = actualNoteNumber;
-                }
-
-                //int proxyNoteNumber = smooshFactor*(actualNoteNumber/smooshFactor);
-                float proxyNoteFreq = MathF.Pow(2, (proxyNoteNumber - 69) / 12f) * 440;
-                float centDifferenceFromProxy = 1200 * MathF.Log2(pitchFreq / proxyNoteFreq);
+            //int proxyNoteNumber = smooshFactor*(actualNoteNumber/smooshFactor);
+            float proxyNoteFreq = MathF.Pow(2, (proxyNoteNumber - 69) / 12f) * 440;
+            float centDifferenceFromProxy = 1200 * MathF.Log2(pitchFreq / proxyNoteFreq);
 
             if (centDifferenceFromProxy != previousCentDifferenceFromProxy)
             {
@@ -262,7 +262,7 @@ namespace BruhWave_Deco
 
                     c++;
                 }
-                
+
                 return c;
             };
         }
@@ -287,7 +287,7 @@ namespace BruhWave_Deco
                     if (sample < min)
                         min = sample;
                 }
-                    
+
                 freq = (int)MathF.Round(pitchFreq);
 
                 /*if (pitchFreq <= 0)
@@ -300,6 +300,189 @@ namespace BruhWave_Deco
                 }*/
             }
         }
+
+    }
+
+    // Shit
+    class QueueSampleProvider : ISampleProvider
+    {
+        private readonly WaveFormat waveformat;
+
+        private NWaves.Signals.Builders.Base.SignalBuilder builder;
+
+        private const int count = 2048;
+
+
+        public QueueSampleProvider(AsioOut asio)
+        {
+            asio.AudioAvailable += Asio_AudioAvailable;
+            waveformat = WaveFormat.CreateIeeeFloatWaveFormat(MainViewModel.sampleRate, 1);
+            builder = new NWaves.Signals.Builders.SineBuilder()
+                .SampledAt(MainViewModel.sampleRate);
+            bufferQueue = new Queue<float[]>();
+            //sigSamples = builder.Build().Samples;
+        }
+
+        public WaveFormat WaveFormat { get => waveformat; }
+        private readonly Queue<float[]> bufferQueue;
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            if (bufferQueue.TryDequeue(out float[] samples))
+            {
+                Buffer.BlockCopy(samples, offset, buffer, 0, count);
+                return count;
+            }
+            else
+                return 0;
+        }
+
+        private void Asio_AudioAvailable(object sender, AsioAudioAvailableEventArgs e)
+        {
+            {
+                var sampleCount = e.SamplesPerBuffer * ((AsioOut)sender).DriverInputChannelCount;
+                //System.Diagnostics.Debug.WriteLine(sampleCount);
+                float[] samples = new float[sampleCount];
+                e.GetAsInterleavedSamples(samples);
+
+
+                float pitchFreq = NWaves.Features.Pitch.FromAutoCorrelation(samples, MainViewModel.sampleRate);
+
+                float max = float.NegativeInfinity;
+                float min = float.PositiveInfinity;
+                foreach (float sample in samples)
+                {
+                    if (sample > max)
+                        max = sample;
+                    if (sample < min)
+                        min = sample;
+                }
+
+                if (pitchFreq > 0)
+                {
+                    builder = builder
+                        .SetParameter("frequency", pitchFreq);
+                    float[] newSamples = new float[count];
+                    for (int i = 0; i < count; i++)
+                        newSamples[i] = builder.NextSample();
+                    bufferQueue.Enqueue(newSamples);
+                }
+            }
+
+        }
+
+    }
+
+    class SineWaveProvider : ISampleProvider
+    {
+        private float[] waveTable;
+        private double phase;
+        private double currentPhaseStep;
+        private double targetPhaseStep;
+        private double frequency;
+        private double phaseStepDelta;
+        private bool seekFreq;
+
+        public SineWaveProvider(AsioOut asio)
+        {
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(MainViewModel.sampleRate, 1);
+            waveTable = new float[MainViewModel.sampleRate];
+            for (int index = 0; index < MainViewModel.sampleRate; ++index)
+                waveTable[index] = (float)Math.Sin(2 * Math.PI * (double)index / MainViewModel.sampleRate);
+            // For sawtooth instead of sine: waveTable[index] = (float)index / sampleRate;
+            Frequency = 440f;
+            Volume = 1f;
+            PortamentoTime = 0.002; // thought this was in seconds, but glide seems to take a bit longer
+            asio.AudioAvailable += Asio_AudioAvailable;
+        }
+
+        public double PortamentoTime { get; set; }
+
+        public double Frequency
+        {
+            get
+            {
+                return frequency;
+            }
+            set
+            {
+                frequency = value;
+                seekFreq = true;
+            }
+        }
+
+        public float Volume { get; set; }
+
+        public WaveFormat WaveFormat { get; private set; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            if (seekFreq) // process frequency change only once per call to Read
+            {
+                targetPhaseStep = waveTable.Length * (frequency / WaveFormat.SampleRate);
+
+                phaseStepDelta = (targetPhaseStep - currentPhaseStep) / (WaveFormat.SampleRate * PortamentoTime);
+                seekFreq = false;
+            }
+            var vol = Volume; // process volume change only once per call to Read
+            for (int n = 0; n < count; ++n)
+            {
+                int waveTableIndex = (int)phase % waveTable.Length;
+                buffer[n + offset] = this.waveTable[waveTableIndex] * vol;
+                phase += currentPhaseStep;
+                if (this.phase > (double)this.waveTable.Length)
+                    this.phase -= (double)this.waveTable.Length;
+                if (currentPhaseStep != targetPhaseStep)
+                {
+                    currentPhaseStep += phaseStepDelta;
+                    if (phaseStepDelta > 0.0 && currentPhaseStep > targetPhaseStep)
+                        currentPhaseStep = targetPhaseStep;
+                    else if (phaseStepDelta < 0.0 && currentPhaseStep < targetPhaseStep)
+                        currentPhaseStep = targetPhaseStep;
+                }
+            }
+            return count;
+        }
+
+
+
+        private void Asio_AudioAvailable(object sender, AsioAudioAvailableEventArgs e)
+        {
+            {
+                var sampleCount = e.SamplesPerBuffer * ((AsioOut)sender).DriverInputChannelCount;
+                //System.Diagnostics.Debug.WriteLine(sampleCount);
+                float[] samples = new float[sampleCount];
+                e.GetAsInterleavedSamples(samples);
+
+
+                float pitchFreq = NWaves.Features.Pitch.FromAutoCorrelation(samples, MainViewModel.sampleRate);
+
+                float max = float.NegativeInfinity;
+                float min = float.PositiveInfinity;
+                foreach (float sample in samples)
+                {
+                    if (sample > max)
+                        max = sample;
+                    if (sample < min)
+                        min = sample;
+                }
+
+                if (pitchFreq > 0)
+                    Frequency = pitchFreq;
+
+                /*if (pitchFreq <= 0)
+                    sound_off = true;
+                else
+                {
+                    builder = builder
+                        .SetParameter("frequency", pitchFreq);
+                    sound_off = false;
+                }*/
+
+
+            }
+        }
+
 
     }
 }
